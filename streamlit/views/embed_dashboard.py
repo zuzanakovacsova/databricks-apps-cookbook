@@ -32,15 +32,15 @@ with tab_a:
 
     published_dashboards = []
 
-    for dashboard in dashboards['dashboards']:
-        dashboard_id = dashboard['dashboard_id']
+    dashboard_id = '01f07c0b79e11146b1f7a52419bb84f4'
+    display_name = 'NYC Taxi Trip Analysis'
         
-        published_url = f"{host}/api/2.0/lakeview/dashboards/{dashboard_id}/published"
-        response = requests.get(published_url, headers=headers)
+    published_url = f"{host}/api/2.0/lakeview/dashboards/{dashboard_id}/published"
+    response = requests.get(published_url, headers=headers)
     
-        if response.status_code == 200:
-            published_dashboards.append((dashboard['display_name'], dashboard['dashboard_id']))
-            print( dashboard['display_name'] + ' ' + dashboard['dashboard_id'])
+    if response.status_code == 200:
+        published_dashboards.append((display_name, dashboard_id))
+        print( display_name + ' ' + dashboard_id)
     final_published_dashboards = {k: v for k, v in published_dashboards }
 
     #st.info(final_published_dashboards)
