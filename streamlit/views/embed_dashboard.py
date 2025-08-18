@@ -28,7 +28,6 @@ with tab_a:
 
     response = requests.get(url, headers=headers)
     dashboards = response.json()
-    dashboard_paths = {dashboard['display_name']: dashboard['dashboard_id'] for dashboard in dashboards['dashboards']}
 
     published_dashboards = []
 
@@ -38,9 +37,8 @@ with tab_a:
     published_url = f"{host}/api/2.0/lakeview/dashboards/{dashboard_id}/published"
     response = requests.get(published_url, headers=headers)
     
-    if response.status_code == 200:
-        published_dashboards.append((display_name, dashboard_id))
-        print( display_name + ' ' + dashboard_id)
+    published_dashboards.append((display_name, dashboard_id))
+    print( display_name + ' ' + dashboard_id)
     final_published_dashboards = {k: v for k, v in published_dashboards }
 
     #st.info(final_published_dashboards)
