@@ -1,20 +1,31 @@
 import React, { useEffect, useState } from "react";
 import Layout from "@theme/Layout";
+import { createClient } from "@sanity/client";
 
 interface Author {
   name: string;
-  url?: string;
+  linkedinUrl?: string;
 }
 
 interface Resource {
   title: string;
   date: string;
-  authors: Author[];
+  authors?: Author[];
   type: string;
   category: string;
   url: string;
   summary?: string;
+  repoOrg?: string;
+  repoName?: string;
 }
+
+// Create Sanity client
+const client = createClient({
+  projectId: "5f7a73bz",
+  dataset: "production",
+  useCdn: false, // Since the site is behind Cloudflare, we don't need Sanity CDN
+  apiVersion: "2025-02-06",
+});
 
 function ResourcesPage() {
   const [resources, setResources] = useState<Resource[]>([]);
@@ -35,8 +46,15 @@ function ResourcesPage() {
   };
 
   const filteredResources = resources.filter((resource) => {
+    const authorString = resource.authors
+      ? resource.authors.map((a) => a.name).join(" ")
+      : "";
+    const repoString =
+      resource.repoOrg && resource.repoName
+        ? `${resource.repoOrg} ${resource.repoName}`
+        : "";
     const searchString =
-      `${resource.title} ${resource.summary} ${resource.authors.map((a) => a.name).join(" ")} ${resource.type} ${resource.category}`.toLowerCase();
+      `${resource.title} ${resource.summary} ${authorString} ${repoString} ${resource.type} ${resource.category}`.toLowerCase();
     const year = new Date(resource.date).getFullYear().toString();
 
     return (
@@ -49,24 +67,38 @@ function ResourcesPage() {
   });
 
   useEffect(() => {
-    fetch("/resources.json")
-      .then((response) => response.json())
-      .then((data) => {
-        const sortedData = data.sort(
-          (a, b) => new Date(b.date) - new Date(a.date),
+    const fetchResources = async () => {
+      try {
+        const data: Resource[] = await client.fetch(`
+          *[_type == "resource"] | order(date desc) {
+            ...,
+            "authors": authors[]->{ name, linkedinUrl },
+            "category": category->title,
+            "type": type->title
+          }
+        `);
+
+        setResources(data);
+        const allCategories = [...new Set(data.map((r) => r.category))].filter(
+          (cat): cat is string => typeof cat === "string",
         );
-        setResources(sortedData);
-        const allCategories = [...new Set(data.map((r) => r.category))];
-        const allTypes = [...new Set(data.map((r) => r.type))];
+        const allTypes = [...new Set(data.map((r) => r.type))].filter(
+          (type): type is string => typeof type === "string",
+        );
         const allYears = [
           ...new Set(
             data.map((r) => new Date(r.date).getFullYear().toString()),
           ),
-        ];
+        ].filter((year): year is string => typeof year === "string");
         setCategories(allCategories.sort());
         setTypes(allTypes.sort());
         setYears(allYears.sort().reverse());
-      });
+      } catch (error) {
+        console.error("Error fetching resources:", error);
+      }
+    };
+
+    fetchResources();
   }, []);
 
   return (
@@ -100,7 +132,7 @@ function ResourcesPage() {
             <aside className="hidden w-1/5 pr-8 md:block">
               <input
                 type="text"
-                placeholder="Search resources..."
+                placeholder={`Search ${resources.length} resources...`}
                 className="mb-4 w-full border border-gray-800 bg-transparent px-4 py-2 text-gray-900 dark:border-gray-400 dark:text-gray-200"
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -185,23 +217,36 @@ function ResourcesPage() {
                       </span>{" "}
                       |{" "}
                       <span className="font-bold">
-                        {resource.authors.map((author, index) => (
-                          <React.Fragment key={author.name}>
-                            {author.url ? (
-                              <a
-                                href={author.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="hover:underline"
-                              >
-                                {author.name}
-                              </a>
-                            ) : (
-                              author.name
-                            )}
-                            {index < resource.authors.length - 1 && ", "}
-                          </React.Fragment>
-                        ))}
+                        {resource.type === "Code sample" &&
+                        resource.repoOrg &&
+                        resource.repoName ? (
+                          <a
+                            href={resource.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline"
+                          >
+                            {resource.repoOrg}/{resource.repoName}
+                          </a>
+                        ) : (
+                          resource.authors?.map((author, index) => (
+                            <React.Fragment key={author.name}>
+                              {author.linkedinUrl ? (
+                                <a
+                                  href={author.linkedinUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="hover:underline"
+                                >
+                                  {author.name}
+                                </a>
+                              ) : (
+                                author.name
+                              )}
+                              {index < resource.authors.length - 1 && ", "}
+                            </React.Fragment>
+                          ))
+                        )}
                       </span>
                     </div>
                     {resource.summary && (
